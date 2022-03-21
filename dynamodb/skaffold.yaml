@@ -1,0 +1,17 @@
+apiVersion: skaffold/v1
+kind: Config
+build:
+  artifacts:
+  - image: sample/dynamodb
+    context: ./
+    docker:
+      dockerfile: ./Dockerfile
+  local:
+    push: false
+    useBuildkit: true
+deploy:
+  kubectl:
+    manifests:
+    - ./manifest/deployment.yaml
+    - ./manifest/service.yaml
+    

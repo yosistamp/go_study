@@ -1,0 +1,75 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dynamodb-localstack
+  namespace: default
+  labels:
+    app.kubernetes.io/name: dynamodb-localstack
+    app.kubernetes.io/instance: dynamodb-localstack
+    app.kubernetes.io/version: 1.0.0
+    app.kubernetes.io/component: localstack
+    app.kubernetes.io/part-of: dynamodb
+    app.kubernetes.io/managed-by: manual
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dynamodb-localstack
+      app.kubernetes.io/component: localstack
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dynamodb-localstack
+        app.kubernetes.io/instance: dynamodb-localstack
+        app.kubernetes.io/version: 1.0.0
+        app.kubernetes.io/component: localstack
+        app.kubernetes.io/part-of: dynamodb
+        app.kubernetes.io/managed-by: manual
+    spec:
+      containers:
+        - name: dynamodb-localstack
+          image: localstack/localstack
+          ports:
+            - containerPort: 4566
+          env:
+            - name: SERVICES
+              value: dynamodb
+            - name: START_WEB
+              value: "0"
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  # create profile and dynamo table and item
+                  - "mkdir ~/.aws \
+                    && echo \"[profile localstack]\" >> ~/.aws/config \
+                    && echo \"region = ap-northeast-1\" >> ~/.aws/config \
+                    && echo \"output = json\" >> ~/.aws/config \
+                    && echo \"[localstack]\" >> ~/.aws/credentials \
+                    && echo \"aws_access_key_id = test-key\" >> ~/.aws/credentials \
+                    && echo \"aws_secret_access_key = test-secret\" >> ~/.aws/credentials \
+                    && aws dynamodb create-table --table-name Test --attribute-definitions AttributeName=Id,AttributeType=S --key-schema AttributeName=Id,KeyType=HASH --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 --profile localstack --endpoint-url=http://localhost:4566 \
+                    && aws dynamodb put-item --table-name=Test --item '{\"Id\": {\"S\": \"0001\"}, \"Name\": {\"S\": \"Yosistamp\"}}' --profile localstack --endpoint-url=http://localhost:4566"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dynamodb-localstack
+  namespace: default
+  labels:
+    app.kubernetes.io/name: dynamodb-localstack
+    app.kubernetes.io/instance: dynamodb-localstack
+    app.kubernetes.io/version: 1.0.0
+    app.kubernetes.io/component: localstack
+    app.kubernetes.io/part-of: dynamodb
+    app.kubernetes.io/managed-by: manual
+spec:
+  selector:
+    app.kubernetes.io/instance: dynamodb-localstack
+    app.kubernetes.io/component: localstack
+  ports:
+    - name: dynamodb-localstack
+      port: 4566
