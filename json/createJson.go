@@ -10,15 +10,16 @@ import (
 )
 
 type Structure struct {
-	Category string      `json:"category"`
-	Sections interface{} `json:"sections"`
-	Node     []Structure `json:"node"`
+	Category   string      `json:"category"`
+	Sections   interface{} `json:"sections"`
+	Node       []Structure `json:"node"`
+	LastUpdate string      `json:"lastupdate"`
 }
 
-func getMdxSections(filePath string) interface{} {
+func getMdxSections(filePath string) (interface{}, string) {
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return []interface{}{}
+		return []interface{}{}, ""
 	}
 
 	re := regexp.MustCompile(`(?s)sections:\s*(\[.*?\])`)
@@ -27,12 +28,19 @@ func getMdxSections(filePath string) interface{} {
 		var sections interface{}
 		err := json.Unmarshal([]byte(matches[1]), &sections)
 		if err != nil {
-			return []interface{}{}
+			return []interface{}{}, ""
 		}
-		return sections
+
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			return sections, ""
+		}
+
+		lastUpdate := fileInfo.ModTime().Format("2006年01月02日")
+		return sections, lastUpdate
 	}
 
-	return []interface{}{}
+	return []interface{}{}, ""
 }
 
 func getFolderStructure(folderPath string, parentCategory string) Structure {
@@ -43,12 +51,13 @@ func getFolderStructure(folderPath string, parentCategory string) Structure {
 	}
 
 	mdxPath := filepath.Join(folderPath, "contents.mdx")
-	sections := getMdxSections(mdxPath)
+	sections, lastUpdate := getMdxSections(mdxPath)
 
 	structure := Structure{
-		Category: category,
-		Sections: sections,
-		Node:     []Structure{},
+		Category:   category,
+		Sections:   sections,
+		Node:       []Structure{},
+		LastUpdate: lastUpdate,
 	}
 
 	subFolders, err := ioutil.ReadDir(folderPath)
